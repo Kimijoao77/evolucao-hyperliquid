@@ -70,7 +70,7 @@ def test_coleta_so_o_que_e_novo_e_aposenta_quem_parou_ou_quebrou(tmp_path, monke
     K.coletar(cfg(), api, AGORA, ler_radar=lambda: {})
     depois = AGORA + 31 * DIA
     api.fills["0xviva"].append(bruto(depois - HORA, 2))
-    api.fills["0xquebrou"].append(bruto(depois - HORA, 3))
+    api.fills["0xquebrou"].append({**bruto(depois - HORA, 3), "liquidation": {"method": "market"}})   # foi liquidada
     api.saldos["0xquebrou"] = 40
     api.pedidos.clear()
     api.ranking = []
@@ -92,3 +92,25 @@ def test_limite_de_vagas_e_faxina(tmp_path, monkeypatch):
     assert r["ativas"] == 3 and r["fila"] > 0
     meses = sorted(p.stem for p in (tmp_path / "fills").glob("*/*.jsonl"))
     assert len(set(meses)) == 1                                              # o mês de 150 dias atrás foi apagado
+
+
+def test_saldo_zerado_sem_liquidacao_nao_e_quebra(tmp_path, monkeypatch):
+    """Muita carteira tira o dinheiro da conta de perpétuos quando não tem posição: continua ativa, com o saldo do ranking."""
+    monkeypatch.setenv("EVOLUCAO_DADOS", str(tmp_path))
+    api = API({"0xvazia": [bruto(AGORA - 2 * DIA, 1)]}, {"0xvazia": 0}, [linha("0xvazia", conta=80_000)])
+    K.coletar(cfg(), api, AGORA, ler_radar=lambda: {})
+    K.coletar(cfg(), api, AGORA + 2 * HORA, ler_radar=lambda: {})
+    c = D.ler_json(tmp_path / "universo.json", {})["carteiras"]["0xvazia"]
+    assert c["situacao"] == "ativa" and c["conta"] == 0 and c["conta_ref"] == 80_000
+
+
+def test_quem_saiu_so_por_saldo_zero_volta_e_ganha_saldo_de_referencia(tmp_path, monkeypatch):
+    monkeypatch.setenv("EVOLUCAO_DADOS", str(tmp_path))
+    D.gravar_json(tmp_path / "universo.json", {"fila": [], "fila_em": AGORA, "carteiras": {
+        "0xvolta": {"situacao": "quebrou", "origem": "ranking", "apelido": "", "em": AGORA, "ultimo_t": AGORA - DIA, "motivo": "a conta caiu para US$ 0"},
+        "0xfoi": {"situacao": "quebrou", "origem": "ranking", "apelido": "", "em": AGORA, "ultimo_t": AGORA - DIA, "liquidada_em": AGORA - DIA}}})
+    api = API({}, {"0xvolta": 0}, [linha("0xVolta", conta=25_000)])
+    K.coletar(cfg(), api, AGORA + 2 * HORA, ler_radar=lambda: {})
+    c = D.ler_json(tmp_path / "universo.json", {})["carteiras"]
+    assert c["0xvolta"]["situacao"] == "ativa" and c["0xvolta"]["conta_ref"] == 25_000 and "motivo" not in c["0xvolta"]
+    assert c["0xfoi"]["situacao"] == "quebrou"                               # a liquidada de verdade continua fora

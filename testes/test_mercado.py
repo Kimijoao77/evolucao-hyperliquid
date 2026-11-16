@@ -107,3 +107,16 @@ def test_escolher_filtra_e_ordena():
     assert escolher({**genes, "duracao_min": 120}, fim, tr, fills) == []       # ele segura 60 min: curto demais para este DNA
     assert escolher(genes, fim, tr, fills, fora={"bom": 1}) == []
     assert tr.ficha("sumido", fim, 30) is None                                  # parado há 20 dias
+
+
+def test_sem_foto_com_saldo_vale_o_saldo_de_referencia():
+    fim = T0 + 30 * 24 * HORA
+    fills = {"w": historico(fim)}
+    zeradas = {"w": fotos_de("w", T0, fim, valor=0.0, ntl=0.0)}
+    genes = {"janela_dias": 30, "min_operacoes": 10, "min_fator_lucro": 1.2, "duracao_min": 30, "max_carteiras": 5, "criterio": "fator_lucro"}
+    assert escolher(genes, fim, Traders(fills, zeradas, CFG["universo"]), fills) == []                 # sem saldo conhecido: fora
+    tr = Traders(fills, zeradas, CFG["universo"], {"w": 20_000.0})
+    assert tr.ficha("w", fim, 30)["conta"] == 20_000.0 and [w for w, _ in escolher(genes, fim, tr, fills)] == ["w"]
+    assert tr.saldos["w"].em(fim) == 20_000.0
+    mista = {"w": fotos_de("w", T0, fim - 5 * HORA, valor=7_000.0) + fotos_de("w", fim - 4 * HORA, fim, valor=0.0)}
+    assert Traders(fills, mista, CFG["universo"], {"w": 20_000.0}).ficha("w", fim, 30)["conta"] == 7_000.0   # a última foto COM saldo

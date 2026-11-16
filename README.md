@@ -115,8 +115,12 @@ O "Copy trading" de regras fixas do radar aparece ao lado, no mesmo período, co
 
 O radar acompanha poucas carteiras, já aprovadas por ele. Para os robôs terem o que escolher, este repositório
 mantém um universo próprio de até 120 carteiras (`evolucao/coletor.py`): as do radar e um **sorteio** entre as que
-passam num pré-filtro do ranking da Hyperliquid. Quem para de operar por 30 dias ou quebra sai da coleta, mas
-continua registrado.
+passam num pré-filtro do ranking da Hyperliquid. Quem para de operar por 30 dias sai da coleta; quem é liquidado e
+fica com a conta quase zerada é marcado como "quebrou". Os dois continuam registrados.
+
+Saldo zerado numa foto não quer dizer quebra: muita carteira tira o dinheiro da conta de perpétuos quando não tem
+posição aberta. Para copiar na proporção certa vale a última foto com saldo; sem nenhuma, o saldo de referência do
+ranking (a mesma saída do radar).
 
 ## Onde fica cada coisa
 

@@ -190,16 +190,16 @@ def eventos(fills: list[dict], atraso_ms: int, fotos: list[dict] | None = None) 
 class Saldos:
     """Saldo do trader ao longo do tempo (as fotos de cada coleta)."""
 
-    def __init__(self, fotos: list[dict]):
-        fs = sorted((f["t"], f["v"]) for f in fotos or [] if f.get("v", 0) > 0)
+    def __init__(self, fotos: list[dict], reserva: float | None = None, minimo: float = 0.0):
+        fs = sorted((f["t"], f["v"]) for f in fotos or [] if f.get("v", 0) > minimo)
         self.t = [x[0] for x in fs]
         self.v = [x[1] for x in fs]
+        self.reserva = reserva                      # saldo de referência (o do ranking), para quem não tem foto com saldo
 
     def em(self, t: int) -> float | None:
-        if not self.t:
-            return None
+        """O saldo da última foto com saldo até `t`; sem nenhuma, o de referência."""
         i = bisect.bisect_right(self.t, t) - 1
-        return self.v[max(i, 0)]
+        return self.v[i] if i >= 0 else self.reserva
 
 
 # ---------------------------------------------------------------- a subconta que copia UM trader

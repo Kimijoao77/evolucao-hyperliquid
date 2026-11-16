@@ -10,7 +10,7 @@ import bisect
 from statistics import median
 
 from . import DIA, HORA
-from .mercado import parte_terceiros
+from .mercado import Saldos, parte_terceiros
 
 
 def operacoes(fills: list[dict]) -> list[tuple[int, int, float]]:
@@ -50,8 +50,10 @@ def operacoes(fills: list[dict]) -> list[tuple[int, int, float]]:
 
 
 class Traders:
-    def __init__(self, fills: dict[str, list[dict]], fotos: dict[str, list[dict]], cfg: dict | None = None):
+    def __init__(self, fills: dict[str, list[dict]], fotos: dict[str, list[dict]], cfg: dict | None = None,
+                 refs: dict[str, float] | None = None):
         cfg = cfg or {}
+        self.saldos = {w: Saldos(fotos.get(w, []), (refs or {}).get(w), 1.0) for w in fills}
         self.conta_minima = cfg.get("conta_minima_para_copiar", 1000)
         self.dias_parado = cfg.get("dias_parado_max", 7)
         self.max_terceiros = cfg.get("max_terceiros", 0.8)
@@ -80,9 +82,9 @@ class Traders:
             return None                                   # quase tudo em mercados de terceiros: não dá para copiar
         fotos = self.fotos.get(w) or []
         j = bisect.bisect_right(self.tfoto.get(w) or [], t) - 1
-        conta = fotos[j][1] if j >= 0 else 0.0
+        conta = self.saldos[w].em(t) or 0.0
         if conta < self.conta_minima:
-            return None                                   # conta pequena demais ou quebrada
+            return None                                   # conta pequena demais (ou sem saldo conhecido)
         de = t - janela_dias * DIA
         t1 = self.t1.get(w) or []
         ops = self.ops[w][bisect.bisect_right(t1, de):bisect.bisect_right(t1, t)]
@@ -94,7 +96,7 @@ class Traders:
         por_dia: dict[int, float] = {}
         for o in ops:
             por_dia[o[0] // DIA] = por_dia.get(o[0] // DIA, 0.0) + o[2]
-        expo = [n / v for tt, v, n in fotos[bisect.bisect_right(self.tfoto[w], de):j + 1] if v > 0 and n > 0]
+        expo = [n / v for tt, v, n in fotos[bisect.bisect_right(self.tfoto.get(w) or [], de):j + 1] if v > 1 and n > 0]
         total = sum(res)
         return {"n": len(ops), "resultado": round(total, 2),
                 "fator_lucro": round(min(10.0, ganhos / perdas), 3) if perdas > 0 else (10.0 if ganhos > 0 else 0.0),

@@ -34,7 +34,7 @@ class Mundo:
     def __init__(self, precos, traders, fills: dict, fotos: dict, ativas, limites: dict, predador):
         self.precos, self.traders, self.fills, self.fotos = precos, traders, fills, fotos
         self.ativas, self.limites, self.predador = set(ativas), limites, predador
-        self.saldos = {w: M.Saldos(fotos.get(w, [])) for w in fills}
+        self.saldos = traders.saldos                       # o mesmo saldo que a ficha usa (fotos ou o de referência)
         self._evs: dict[tuple, tuple[list, list]] = {}
         self.diario: list[dict] = []                      # o que aconteceu de notável (paradas, freios, abates)
 

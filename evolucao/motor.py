@@ -74,7 +74,7 @@ class EvolutionEngine:
 
         fills = {w: D.ler_fills(w) for w in ativas}
         fotos = D.ler_fotos()
-        traders = Traders(fills, fotos, cfg["universo"])
+        traders = Traders(fills, fotos, cfg["universo"], {w: cart[w].get("conta_ref") for w in ativas})
         precos = self.precos or PrecosVivos(self.api, self.agora, self.ate)
         mundo = R.Mundo(precos, traders, fills, fotos, ativas, cfg["limites"], self.predador)
         self.mundo = mundo

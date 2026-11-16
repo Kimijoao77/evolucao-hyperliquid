@@ -10,8 +10,12 @@ coletor mantém um universo próprio e mais largo (até 120):
 3. Com o tempo que sobrar, traz as da fila: 90 dias de histórico de cada uma (o passado do TRADER, que os robôs usam
    para escolher; o resultado dos ROBÔS só conta daqui para a frente).
 
-Quem para de operar por 30 dias ou fica com a conta quase zerada sai da coleta, mas continua registrado: trader que
-quebrou faz parte da história.
+Quem para de operar por 30 dias sai da coleta, e quem é liquidado e fica com a conta quase zerada é marcado como
+"quebrou". Os dois continuam registrados: trader que quebrou faz parte da história.
+
+Saldo zerado sozinho NÃO quer dizer que quebrou: muita carteira tira o dinheiro da conta de perpétuos quando não tem
+posição aberta. Por isso cada carteira guarda um saldo de referência (o do ranking, na entrada), usado quando as
+fotos não mostram saldo. É a mesma saída do radar-hyperliquid.
 """
 from __future__ import annotations
 
@@ -60,7 +64,8 @@ def montar_fila(uni: dict, linhas: list[dict], do_radar: list[dict], cfg: dict, 
         a = (c.get("carteira") or "").lower()
         if a and a not in visto and livre(a):
             visto.add(a)
-            fila.append({"a": a, "apelido": c.get("apelido") or "", "origem": "radar"})
+            fila.append({"a": a, "apelido": c.get("apelido") or "", "origem": "radar",
+                         "conta_ref": (c.get("copia") or {}).get("conta_ref")})
     ok = sorted((l for l in linhas if passa(l, cfg["filtro"])), key=lambda l: l["ethAddress"].lower())
     random.Random(f"fila-{agora // SEMANA}").shuffle(ok)
     ativas = sum(1 for c in cart.values() if c["situacao"] == "ativa")
@@ -71,12 +76,24 @@ def montar_fila(uni: dict, linhas: list[dict], do_radar: list[dict], cfg: dict, 
         a = l["ethAddress"].lower()
         if a not in visto and livre(a):
             visto.add(a)
-            fila.append({"a": a, "apelido": l.get("displayName") or "", "origem": "ranking"})
-    nomes = {l["ethAddress"].lower(): l.get("displayName") for l in linhas if l.get("displayName")}
-    for a, c in cart.items():                             # o apelido pode mudar
-        if nomes.get(a):
-            c["apelido"] = nomes[a]
+            fila.append({"a": a, "apelido": l.get("displayName") or "", "origem": "ranking",
+                         "conta_ref": round(float(l.get("accountValue") or 0), 2)})
+    anotar(cart, linhas)
     return fila
+
+
+def anotar(cart: dict, linhas: list[dict]) -> None:
+    """O que o ranking sabe de quem já está no universo: o apelido (pode mudar) e o saldo de referência."""
+    por_a = {l["ethAddress"].lower(): l for l in linhas}
+    for a, c in cart.items():
+        l = por_a.get(a)
+        if not l:
+            continue
+        if l.get("displayName"):
+            c["apelido"] = l["displayName"]
+        v = float(l.get("accountValue") or 0)
+        if v > 0 and not c.get("conta_ref"):
+            c["conta_ref"] = round(v, 2)
 
 
 def foto(api, a: str, agora: int) -> float:
@@ -97,6 +114,8 @@ def trazer(api, item: dict, cfg: dict, agora: int) -> dict:
     a = item["a"]
     fills = [D.compactar(f) for f in api.fills_desde(a, agora - cfg["dias_de_historico"] * DIA)]
     base = {"apelido": item.get("apelido", ""), "origem": item["origem"], "em": agora}
+    if item.get("conta_ref"):
+        base["conta_ref"] = item["conta_ref"]
     if not fills:
         return {**base, "situacao": "recusada", "motivo": "sem operações em 90 dias"}
     dias = max(1.0, (agora - fills[0]["t"]) / DIA)
@@ -106,7 +125,9 @@ def trazer(api, item: dict, cfg: dict, agora: int) -> dict:
         return {**base, "situacao": "recusada", "motivo": "quase tudo em mercados de terceiros"}
     D.anexar_fills(a, fills)
     v = foto(api, a, agora)
-    return {**base, "situacao": "ativa", "entrou": agora, "ultimo_t": fills[-1]["t"], "coletado_em": agora, "conta": v}
+    liq = [f["t"] for f in fills if f.get("liq")]
+    return {**base, "situacao": "ativa", "entrou": agora, "ultimo_t": fills[-1]["t"], "coletado_em": agora, "conta": v,
+            **({"liquidada_em": liq[-1]} if liq else {})}
 
 
 def coletar(cfg_todo: dict, api, agora: int, limite_min: float = 12.0, ler_radar=None) -> dict:
@@ -134,6 +155,18 @@ def coletar(cfg_todo: dict, api, agora: int, limite_min: float = 12.0, ler_radar
         except Exception as e:  # noqa: BLE001
             log.append(f"o ranking não respondeu: {str(e)[:100]}")
 
+    # (conserto de 16/11) quem foi tirado só porque a foto mostrava saldo zero volta para a coleta
+    for c in cart.values():
+        if c["situacao"] == "quebrou" and not c.get("liquidada_em"):
+            c.update(situacao="ativa")
+            c.pop("motivo", None)
+    # quem ainda não tem saldo de referência pega o do ranking (uma consulta só)
+    if any(c["situacao"] == "ativa" and not c.get("conta_ref") for c in cart.values()):
+        try:
+            anotar(cart, api.leaderboard())
+        except Exception as e:  # noqa: BLE001
+            log.append(f"o ranking não respondeu (saldo de referência): {str(e)[:100]}")
+
     # 2. fills e fotos das ativas (primeiro as que estão há mais tempo sem coleta)
     feitas = erros = novos = 0
     for a in sorted((a for a, c in cart.items() if c["situacao"] == "ativa"), key=lambda a: cart[a].get("coletado_em", 0)):
@@ -146,6 +179,9 @@ def coletar(cfg_todo: dict, api, agora: int, limite_min: float = 12.0, ler_radar
             novos += D.anexar_fills(a, fills)
             if fills:
                 c["ultimo_t"] = max(f["t"] for f in fills)
+                liq = [f["t"] for f in fills if f.get("liq")]
+                if liq:
+                    c["liquidada_em"] = max(liq)
             c["conta"] = foto(api, a, agora)
             c["coletado_em"] = agora
             c.pop("erro", None)
@@ -156,8 +192,8 @@ def coletar(cfg_todo: dict, api, agora: int, limite_min: float = 12.0, ler_radar
             continue
         if agora - c.get("ultimo_t", agora) > cfg["dias_sem_operar_para_sair"] * DIA:
             c.update(situacao="parada", em=agora, motivo=f"sem operar há {cfg['dias_sem_operar_para_sair']} dias")
-        elif c["conta"] < cfg["conta_minima_para_ficar"]:
-            c.update(situacao="quebrou", em=agora, motivo=f"a conta caiu para US$ {c['conta']:.0f}")
+        elif c["conta"] < cfg["conta_minima_para_ficar"] and agora - c.get("liquidada_em", 0) < 7 * DIA:
+            c.update(situacao="quebrou", em=agora, motivo=f"foi liquidada e a conta ficou em US$ {c['conta']:.0f}")
 
     # 3. as da fila, enquanto houver tempo e vaga
     entraram = recusadas = 0
