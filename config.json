@@ -91,6 +91,20 @@
    "geracao": {
     "min_ordens": 1
    }
+  },
+  "listagens": {
+   "_leia": "Robôs que vendem (short) moeda recém-listada na Hyperliquid. Moedas novas são poucas, então basta 1 ordem para ser aprovado. Custos: taxa a mercado 0,045 % e escorregamento de 0,1 % em cada ponta (livro fino); na conta gêmea o escorregamento é 0,3 % e a entrada atrasa 1 hora.",
+   "ligada": true,
+   "geracao": {
+    "min_ordens": 1
+   }
+  },
+  "pools": {
+   "_leia": "Robôs de pools de liquidez concentrada (DLMM da Meteora, Solana). As pools são lidas a cada rodada (as 12 de maior taxa entre as elegíveis e as que já estavam sendo seguidas), com velas de 5 min do GeckoTerminal. Mínimo de 1 ordem para ser aprovado.",
+   "ligada": true,
+   "geracao": {
+    "min_ordens": 1
+   }
   }
  }
 }

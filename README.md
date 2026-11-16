@@ -181,12 +181,57 @@ aceita queda grande) e **Constante** (K, queda pequena, janela longa).
 
 O app lê `cofres.json` no ramo `estado`. A memória das gerações fica em `memoria/cofres/`.
 
+## Outras famílias: moedas novas
+
+Robôs que **vendem (short) moeda recém-listada** na Hyperliquid, esperando a queda que costuma vir nas semanas depois
+da estreia (`evolucao/listagens/`). A estreia de uma moeda é a hora do primeiro funding dela.
+
+| Bloco | Gene | O que decide | Faixa |
+|---|---|---|---|
+| Entrada | `espera_h` | quantas horas depois da estreia vende | 1 a 336 |
+| Entrada | `teto_estreia` | só vende se o preço estiver abaixo de X vezes o da estreia | desligado ou 0,6 a 3 |
+| Saída | `parada` | subiu isso desde a venda: sai | 8 % a 80 % |
+| Saída | `alvo` | caiu isso desde a venda: sai com lucro | desligado ou 8 % a 80 % |
+| Saída | `prazo_dias` | sai depois de tantos dias | 1 a 30 |
+| Risco | `parte` | margem de cada moeda, em fração do patrimônio | 3 % a 25 % |
+| Risco | `alav` | alavancagem | 1× a 3× |
+| Risco | `max_abertas` | moedas vendidas ao mesmo tempo | 2 a 15 |
+
+Espécies: **Rápida** (R), **Paciente** (P), **Apertada** (J, parada curta e alvo) e **Espaçosa** (E, parada larga e
+pouca margem). Custos: 0,045 % de taxa e 0,1 % de escorregamento em cada ponta e o funding real (vendido recebe
+quando é positivo). Passou do ponto de liquidação: perde a margem daquela moeda. **Estresse:** escorregamento de 0,3 %
+e entrada 1 hora depois. **Régua:** a regra fixa do laboratório de moedas novas do radar (vende 24 h depois, 10 % por
+moeda, sai se subir 30 % ou em 14 dias). Moedas novas são poucas: muitos robôs passam uma geração sem operar, e
+mínimo para aprovar é 1 ordem.
+
+## Outras famílias: pools concentradas
+
+Robôs que põem dinheiro em **pools de liquidez concentrada** (DLMM da Meteora, na Solana) e ganham a taxa de quem
+troca enquanto o preço fica dentro da faixa (`evolucao/pools/`). A conta da posição é a do laboratório de pools do
+radar (valor em SOL/USDC, fatia da taxa contra as posições típicas da pool, dividida com o nosso dinheiro).
+
+| Bloco | Gene | O que decide | Faixa |
+|---|---|---|---|
+| Pool | `criterio` | maior taxa sobre o dinheiro em 24 h, na última hora, ou mais volume | |
+| Pool | `balanco_max` | só pools com o preço calmo (desvio das variações de 1 h em 24 h) | desligado ou 0,5 % a 6 % |
+| Pool | `tvl_min` | dinheiro mínimo na pool | US$ 10 mil a 2 milhões |
+| Posição | `posicao` | faixa logo abaixo do preço (só SOL/USDC) ou centrada (troca metade) | |
+| Posição | `r` | largura da faixa (abaixo: até −2r; centrada: ±r) | 1 % a 35 % |
+| Posição | `n_pools` | em quantas pools divide | 1 a 5 |
+| Saída | `prazo_h` | sai depois de tantas horas | 4 a 96 |
+| Saída | `espera_acima_h` | preço acima da faixa: espera tantas horas e reabre | 1 a 12 |
+
+Espécies: **Estreita** (N), **Larga** (L), **Calma** (C) e **Rápida** (Q). A cada rodada são lidas as 12 pools
+elegíveis de maior taxa (SOL ou USDC do outro lado, US$ 10 mil ou mais, US$ 50 mil de volume) e as que já estavam
+sendo seguidas, com velas de 5 min do GeckoTerminal. **Estresse:** a posição leva metade da fatia da taxa e o
+escorregamento dobra. **Régua:** a regra fixa do radar (faixa estreita, 3 pools calmas, 24 h).
+
 ## Onde fica cada coisa
 
 | Onde | O quê |
 |---|---|
 | ramo `main` | o código, os testes e `memoria/` (um arquivo por geração fechada: DNA, pais, medidas e motivo de saída de cada robô) |
-| ramo `estado` | os dados vivos: `evolucao.json` (o resumo que o app lê), `estado.json` (a população), `universo.json`, `fills/` e `contas/`; dos robôs de preço, `precos.json` (o resumo), `precos/estado.json` e as velas e o funding em `precos/velas/` e `precos/funding/` |
+| ramo `estado` | os dados vivos: `evolucao.json` (o resumo que o app lê), `estado.json` (a população), `universo.json`, `fills/` e `contas/`; de cada outra família (`precos`, `cofres`, `listagens`, `pools`), `<família>.json` (o resumo que o app lê), `<família>/estado.json` (a população) e os dados de mercado dela |
 
 O ramo `estado` é regravado a cada rodada como um commit só, sem histórico. O repositório não cresce com os anos.
 
