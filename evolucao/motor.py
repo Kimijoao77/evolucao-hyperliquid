@@ -21,7 +21,7 @@ from . import robo as R
 from .coletor import curto
 from .dna import ESPECIES, GENES, BotDNA
 from .mercado import PrecosVivos
-from .populacao import Population
+from .populacao import Population, atualizar_linhagem, linhagem_para_app
 from .predador import Predator
 from .traders import Traders
 
@@ -71,6 +71,7 @@ class EvolutionEngine:
                    "curva": [], "historia": [], "eventos": []}
             self._evento(est, inicio, "inicio", f"A evolução começou: {len(pop.robos)} robôs fundadores, todos com US$ {self.amb['capital']:.0f} de mentira.")
         pop = Population(est["robos"], est["proximo"], cfg)
+        atualizar_linhagem(est.setdefault("linhagem", {}), pop.robos, BotDNA)
 
         fills = {w: D.ler_fills(w) for w in ativas}
         fotos = D.ler_fotos()
@@ -98,6 +99,7 @@ class EvolutionEngine:
             if marco >= ger["fim"]:
                 self._virar(est, pop, mundo, marco, estatico)
         est["ate"] = self.ate
+        atualizar_linhagem(est["linhagem"], pop.robos, BotDNA)
         est["robos"], est["proximo"] = pop.robos, pop.proximo
         est["eventos"] = est["eventos"][-MAX_EVENTOS:]
         D.gravar_json(arq, est)
@@ -151,6 +153,7 @@ class EvolutionEngine:
                   "nasc": r["nasc"], "origem": r["origem"], "pais": r["pais"], "mudou": r.get("mudou", []),
                   "medidas": medidas[r["id"]], "copiava": sorted(r["n"]["subs"])} for r in pop.robos]
         rel = pop.virar(g, medidas, self.predador, random.Random(f"{self.cfg['semente']}-geracao-{g}"), t, mundo)
+        atualizar_linhagem(est["linhagem"], pop.robos, BotDNA, rel["saiu"], g)
         estados = {r["id"]: r for r in pop.robos}
         saiu = {s["id"]: s["motivo"] for s in rel["saiu"]}
         for a in antes:
@@ -212,7 +215,8 @@ class EvolutionEngine:
                         "operando" if n["subs"] else "sem trader")
             robos.append({"id": r["id"], "especie": r["especie"], "grupo": r["grupo"], "estado": r["estado"],
                           "situacao": situacao, "nasc": r["nasc"], "origem": r["origem"], "pais": r["pais"],
-                          "dna": r["dna"], **{k: m[k] for k in ("r", "re", "queda", "sm", "ordens", "nota", "morte")},
+                          "dna": r["dna"], "u": BotDNA(r["especie"], r["dna"]).blocos_u(),
+                          **{k: m[k] for k in ("r", "re", "queda", "sm", "ordens", "nota", "morte")},
                           "total": round(n["pat"] / cfg["ambiente"]["capital"] - 1, 5),
                           "aptidao": r.get("aptidao"), "copia": [nome(w) for w in sorted(n["subs"])],
                           "caixa": round(n["caixa"] / n["pat"], 3) if n["pat"] > 0 else 1.0,
@@ -252,6 +256,7 @@ class EvolutionEngine:
                        "confirmados": sum(1 for x in evo if x["estado"] == "confirmada"),
                        "selecionados": sum(1 for x in evo if x["estado"] == "selecionada")},
             "especies": especies, "robos": robos, "curva": est["curva"][-400:], "historia": est["historia"][-60:],
+            "blocos": list(BotDNA.BLOCOS), "linhagem": linhagem_para_app(est["linhagem"], ger["n"]),
             "eventos": est["eventos"][-30:][::-1], "universo": self._universo(uni, copiados),
             "ambiente": self.amb, "estresse": cfg["estresse"], "limites": cfg["limites"],
             "regras": {"min_ordens": cfg["geracao"]["min_ordens"], "troca": cfg["geracao"]["troca"],

@@ -125,6 +125,11 @@ def test_motor_roda_vira_geracao_e_grava(tmp_path, monkeypatch):
     assert mem["resumo"]["nasceu"] == mem["resumo"]["saiu"] and len(mem["robos"]) == len(ESPECIES) * 13
     assert s2["resumo"]["regua_nome"] == "Segurar BTC" and s2["resumo"]["regua"] is not None
     assert s2["curva"] and len(s2["curva"][0]) == 4
+    # a árvore: quem saiu na geração 1 continua nela, com a geração em que saiu; quem nasceu na 2 também está
+    lin = {x["id"]: x for x in s2["linhagem"]}
+    assert sum(1 for x in lin.values() if x.get("s") == 1) == mem["resumo"]["saiu"]
+    assert sum(1 for x in lin.values() if x["g"] == 2) == mem["resumo"]["nasceu"]
+    assert all(len(r["u"]) == 3 and all(-1 <= u <= 1 for b in r["u"] for u in b) for r in s2["robos"])
     est = D.ler_json(tmp_path / "dados" / "precos" / "estado.json", {})
     novos = [r for r in est["robos"] if r["nasc"] == 2]
     assert novos and all(r["t0"] == est["inicio"] + 14 * DIA for r in novos)

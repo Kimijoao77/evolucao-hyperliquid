@@ -29,6 +29,37 @@ from .dna import ESPECIES, BotDNA
 from .predador import Predator
 
 
+def atualizar_linhagem(lin: dict, robos: list[dict], dna_cls, saiu: list[dict] | None = None, g: int | None = None) -> dict:
+    """A árvore da família: todo robô que já existiu, com espécie, geração em que nasceu, pais, o melhor estado a que
+    chegou, a geração em que saiu (e por quê) e o DNA em números (para o app desenhar). Fica no estado para sempre."""
+    ordem = {"sorteio": 0, "nova": 0, "selecionada": 1, "confirmada": 2}
+    for r in robos:
+        x = lin.get(r["id"])
+        if x is None:
+            x = lin[r["id"]] = {"e": r["especie"], "g": r["nasc"], "p": list(r.get("pais") or []),
+                                "o": r.get("origem", ""), "grupo": r["grupo"],
+                                "u": dna_cls(r["especie"], r["dna"]).blocos_u(), "c": r["estado"]}
+        if ordem.get(r["estado"], 0) > ordem.get(x.get("c"), 0):
+            x["c"] = r["estado"]
+    for s in saiu or []:
+        if s["id"] in lin:
+            lin[s["id"]]["s"] = g
+            lin[s["id"]]["m"] = s.get("motivo", "")
+    return lin
+
+
+def linhagem_para_app(lin: dict, g_atual: int, geracoes: int = 16) -> list[dict]:
+    """As últimas `geracoes` gerações da árvore, do jeito que o app desenha."""
+    de = g_atual - geracoes + 1
+    out = []
+    for i, x in lin.items():
+        if x.get("s") is not None and x["s"] < de:
+            continue
+        out.append({"id": i, **x})
+    out.sort(key=lambda x: (x["g"], x["id"]))
+    return out
+
+
 class FamiliaCopia:
     """O que muda de uma família de robôs para outra, do ponto de vista da população: o DNA (genes e espécies), as
     contas de um robô que nasce e o que fazer com elas na virada. As outras famílias (robôs de preço, cofres...)

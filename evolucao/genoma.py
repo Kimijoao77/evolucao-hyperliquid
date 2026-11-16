@@ -170,6 +170,33 @@ class Genoma:
                     soma += abs(a - b) / (hi - lo)
         return soma / max(1, len(nomes))
 
+    def blocos_u(self) -> list[list[float]]:
+        """O DNA em números de 0 a 1, um grupo por bloco (na ordem de BLOCOS): onde cada gene cai na faixa INTEIRA
+        dele (não na da espécie), para o app desenhar o robô. Gene desligado = -1. Como o filho herda blocos inteiros,
+        cada bloco vira uma parte do corpo do robô no app: dá para ver de quem ele herdou o quê."""
+        out = []
+        for b in self.BLOCOS:
+            us = []
+            for nome, g in self.GENES.items():
+                if g["bloco"] != b:
+                    continue
+                v = self.genes.get(nome)
+                if g["tipo"] == "opcao":
+                    ops = g["opcoes"]
+                    us.append(round(ops.index(v) / max(1, len(ops) - 1), 3) if v in ops else 0.0)
+                elif g.get("desliga") and v == 0:
+                    us.append(-1)
+                else:
+                    lo, hi = g["faixa"]
+                    try:
+                        u = ((math.log(v) - math.log(lo)) / (math.log(hi) - math.log(lo)) if g.get("log")
+                             else (v - lo) / (hi - lo))
+                    except (ValueError, ZeroDivisionError, TypeError):
+                        u = 0.0
+                    us.append(round(min(1.0, max(0.0, u)), 3))
+            out.append(us)
+        return out
+
     def copia(self):
         return type(self)(self.especie, dict(self.genes))
 

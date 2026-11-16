@@ -22,7 +22,7 @@ from statistics import median
 
 from . import DIA, HORA
 from . import dados as D
-from .populacao import Population
+from .populacao import Population, atualizar_linhagem, linhagem_para_app
 from .predador import Predator
 
 VERSAO = 1
@@ -73,11 +73,14 @@ class MotorRecalculo:
             self._evento(est, inicio, "inicio", f"{fam.titulo}: a evolução começou com {len(pop.robos)} robôs fundadores, "
                          f"todos com US$ {self.capital:.0f} de mentira.")
         pop = Population(est["robos"], est["proximo"], cfg, fam)
+        lin = est.setdefault("linhagem", {})
+        atualizar_linhagem(lin, pop.robos, fam.dna)
 
         while est["geracao"]["fim"] <= self.ate:                  # gerações que fecharam desde a última rodada
             self._virar(est, pop, est["geracao"]["fim"])
         vidas = self._vidas(pop, self.ate)
         self._abates(est, pop, vidas)
+        atualizar_linhagem(est["linhagem"], pop.robos, fam.dna)
         est["robos"], est["proximo"] = pop.robos, pop.proximo
         est["eventos"] = est["eventos"][-MAX_EVENTOS:]
         D.gravar_json(self._arq_estado(), est)
@@ -130,6 +133,7 @@ class MotorRecalculo:
                   "nasc": r["nasc"], "t0": r["t0"], "origem": r["origem"], "pais": r["pais"], "mudou": r.get("mudou", []),
                   "medidas": medidas[r["id"]]} for r in pop.robos]
         rel = pop.virar(g, medidas, self.predador, random.Random(f"{self.cfg['semente']}-{fam.id}-geracao-{g}"), t)
+        atualizar_linhagem(est["linhagem"], pop.robos, fam.dna, rel["saiu"], g)
         estados = {r["id"]: r for r in pop.robos}
         saiu = {s["id"]: s for s in rel["saiu"]}
         for a in antes:
@@ -192,7 +196,7 @@ class MotorRecalculo:
                         else "operando" if vn["pts"] else "esperando"))
             robos.append({"id": r["id"], "especie": r["especie"], "grupo": r["grupo"], "estado": r["estado"],
                           "situacao": situacao, "nasc": r["nasc"], "origem": r["origem"], "pais": r["pais"],
-                          "nome": fam.nome(r), "dna": r["dna"],
+                          "nome": fam.nome(r), "dna": r["dna"], "u": fam.dna(r["especie"], r["dna"]).blocos_u(),
                           **{k: m[k] for k in ("r", "re", "queda", "sm", "ordens", "nota", "morte", "freios")},
                           "total": round((vn["eq"][-1] if vn["eq"] else self.capital) / self.capital - 1, 5),
                           "aptidao": r.get("aptidao"), **(fam.detalhe(r, vn) if hasattr(fam, "detalhe") else {}),
@@ -228,6 +232,7 @@ class MotorRecalculo:
                        "confirmados": sum(1 for x in evo if x["estado"] == "confirmada"),
                        "selecionados": sum(1 for x in evo if x["estado"] == "selecionada")},
             "especies": especies, "robos": robos, "curva": self._curva(pop, vidas, ger["inicio"], t),
+            "blocos": list(fam.dna.BLOCOS), "linhagem": linhagem_para_app(est["linhagem"], ger["n"]),
             "historia": est["historia"][-60:], "eventos": est["eventos"][-30:][::-1],
             "limites": cfg["limites"], "regras": {"min_ordens": cfg["geracao"]["min_ordens"], "troca": cfg["geracao"]["troca"],
                                                   "genes": {k: {"bloco": g["bloco"]} for k, g in fam.dna.GENES.items()}},
