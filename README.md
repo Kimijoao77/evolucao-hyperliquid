@@ -151,6 +151,36 @@ O que muda em relação ao copy trading:
 
 O app lê `precos.json` no ramo `estado`. A memória das gerações fica em `memoria/precos/`.
 
+## Outras famílias: cofres
+
+Robôs que **não operam**: escolhem em quais cofres (vaults) da Hyperliquid depositar, quanto pôr em cada um e quando
+sair (`evolucao/cofres/`). Quem opera é o dono do cofre, que fica com a comissão do cofre sobre o lucro (o HLP não
+cobra).
+
+| Bloco | Gene | O que decide | Faixa |
+|---|---|---|---|
+| Filtro | `janela_dias` | quantos dias do histórico do cofre o robô olha | 30 a 365 |
+| Filtro | `criterio` | maior retorno, mais semanas no azul ou retorno ÷ queda | |
+| Filtro | `max_queda` | a maior queda aceita no histórico olhado | 5 % a 60 % |
+| Filtro | `min_idade_dias` | idade mínima do cofre | 30 a 365 dias |
+| Filtro | `min_tvl` | dinheiro mínimo no cofre | US$ 100 mil a 20 milhões |
+| Alocação | `n_cofres` | em quantos cofres de trader divide | 1 a 8 |
+| Alocação | `peso_hlp` | parte fixa no HLP | desligado ou 10 % a 100 % |
+| Alocação | `revisao_dias` | de quanto em quanto tempo revê | 7 a 60 dias |
+| Risco | `parada` | queda desde o pico num cofre que faz sair dele até a próxima revisão | desligado ou 5 % a 40 % |
+
+Espécies: **Âncora** (H, metade ou mais no HLP), **Diversificada** (D, 4 a 8 cofres), **Agressiva** (X, só retorno,
+aceita queda grande) e **Constante** (K, queda pequena, janela longa).
+
+- Os cofres são lidos de 6 em 6 horas: os 60 maiores que passam no pré-filtro (abertos, US$ 100 mil ou mais, 30 dias
+  ou mais), o HLP e todos que já estavam guardados. Na primeira vez entra o histórico inteiro do cofre (o passado que
+  um robô pode olhar); depois cada leitura só **acrescenta** um ponto, e o que já estava guardado nunca muda.
+- Um depósito fica preso 1 dia (4 no HLP). Cofres-filho (os pedaços do HLP) ficam de fora: ninguém deposita neles.
+- **Estresse:** cada depósito e cada saque só acontece 1 dia depois da decisão, e a comissão é 5 pontos maior.
+- Mínimo de ordens para aprovar: 1 (um depósito). **Régua:** deixar tudo no HLP.
+
+O app lê `cofres.json` no ramo `estado`. A memória das gerações fica em `memoria/cofres/`.
+
 ## Onde fica cada coisa
 
 | Onde | O quê |

@@ -16,9 +16,10 @@ from evolucao.api import Hyperliquid  # noqa: E402
 from evolucao.coletor import coletar  # noqa: E402
 from evolucao.familia import MotorRecalculo  # noqa: E402
 from evolucao.motor import EvolutionEngine  # noqa: E402
+from evolucao.cofres import FamiliaCofres  # noqa: E402
 from evolucao.precos import FamiliaPrecos  # noqa: E402
 
-FAMILIAS = {"precos": FamiliaPrecos}
+FAMILIAS = {"precos": FamiliaPrecos, "cofres": FamiliaCofres}
 
 
 def main() -> int:

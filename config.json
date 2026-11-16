@@ -84,6 +84,13 @@
    "geracao": {
     "min_ordens": 4
    }
+  },
+  "cofres": {
+   "_leia": "Robôs que escolhem cofres (vaults) da Hyperliquid. Os cofres são lidos de 6 em 6 horas (os 60 maiores que passam no pré-filtro, o HLP e quem já estava guardado). Um robô de cofres mexe pouco, então basta 1 ordem (um depósito) para ser aprovado.",
+   "ligada": true,
+   "geracao": {
+    "min_ordens": 1
+   }
   }
  }
 }

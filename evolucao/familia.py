@@ -62,7 +62,7 @@ class MotorRecalculo:
         novo = not est
         inicio = est.get("inicio") or self.ate
         desde = min([r["t0"] for r in est.get("robos", [])] + [inicio])
-        if not fam.preparar(self.api, self.agora, desde, self.log):
+        if not fam.preparar(self.api, self.agora, desde, self.log):    # (a família busca o que falta de mercado)
             self.log.append(f"{fam.id}: sem dados de mercado, a rodada ficou para depois")
             return D.ler_json(self._arq_saida(), {})
         if novo:
@@ -188,14 +188,14 @@ class MotorRecalculo:
         robos = []
         for r in pop.robos:
             vn, m = vidas[r["id"]][0], medidas[r["id"]]
-            situacao = ("abatido" if vn["morte"] else "descansando" if vn["descanso_ate"] and vn["descanso_ate"] > t
-                        else "operando" if vn["pts"] else "esperando")
+            situacao = ("abatido" if vn["morte"] else vn.get("situacao") or ("descansando" if vn["descanso_ate"] and vn["descanso_ate"] > t
+                        else "operando" if vn["pts"] else "esperando"))
             robos.append({"id": r["id"], "especie": r["especie"], "grupo": r["grupo"], "estado": r["estado"],
                           "situacao": situacao, "nasc": r["nasc"], "origem": r["origem"], "pais": r["pais"],
                           "nome": fam.nome(r), "dna": r["dna"],
                           **{k: m[k] for k in ("r", "re", "queda", "sm", "ordens", "nota", "morte", "freios")},
                           "total": round((vn["eq"][-1] if vn["eq"] else self.capital) / self.capital - 1, 5),
-                          "aptidao": r.get("aptidao"),
+                          "aptidao": r.get("aptidao"), **(fam.detalhe(r, vn) if hasattr(fam, "detalhe") else {}),
                           "hist": [{"g": h["g"], "r": h["r"], "nota": h["nota"], "ok": h["ok"]} for h in r["hist"][-6:]]})
         robos.sort(key=lambda x: (-x["nota"], x["id"]))
         especies = []
@@ -223,6 +223,7 @@ class MotorRecalculo:
                        "regua": rv, "regua_nome": rn, "melhor": max((x["r"] for x in evo), default=None),
                        "operando": sum(1 for x in evo if x["situacao"] == "operando"),
                        "descansando": sum(1 for x in evo if x["situacao"] == "descansando"),
+                       "no_caixa": sum(1 for x in evo if x["situacao"] == "no caixa"),
                        "abatidos": sum(1 for x in evo if x["situacao"] == "abatido"),
                        "confirmados": sum(1 for x in evo if x["estado"] == "confirmada"),
                        "selecionados": sum(1 for x in evo if x["estado"] == "selecionada")},
