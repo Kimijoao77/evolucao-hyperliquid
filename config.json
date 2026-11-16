@@ -1,0 +1,69 @@
+{
+ "_leia": "Parâmetros do laboratório evolutivo. Tudo simulação, com dólares de mentira. O que está em 'ambiente', 'estresse' e 'limites' vale para todos os robôs e NÃO faz parte do DNA: nenhum robô consegue mudar.",
+ "semente": 2026,
+ "peso_por_minuto": 1000,
+ "radar": "https://raw.githubusercontent.com/Kimijoao77/radar-hyperliquid/main/saida/",
+ "ambiente": {
+  "_leia": "Como a cópia é executada: capital de cada robô, atraso depois da ordem do trader, taxa de quem executa a mercado, escorregamento por ordem e ordem mínima da Hyperliquid.",
+  "capital": 1000.0,
+  "atraso_s": 60,
+  "taxa": 0.00045,
+  "escorrega": 0.0005,
+  "ordem_minima": 10.0
+ },
+ "estresse": {
+  "_leia": "A conta gêmea de cada robô roda com estes valores piores. Mostra quanto do resultado depende de execução perfeita.",
+  "atraso_s": 180,
+  "escorrega": 0.0015
+ },
+ "limites": {
+  "_leia": "Limites duros. exposicao_max: posições somadas ÷ patrimônio. peso_max_por_carteira: fatia máxima do robô num trader só. queda_abate: caiu isso desde o pico, o Predador abate. descanso_dias: pausa depois do freio do próprio robô.",
+  "exposicao_max": 3.0,
+  "peso_max_por_carteira": 0.5,
+  "queda_abate": 0.3,
+  "descanso_dias": 3
+ },
+ "nota": {
+  "_leia": "nota = min(r, r_estresse) - queda*QUEDA - CONCENTRACAO*max(0, r - r_sem_melhor). aptidão = PIOR*pior nota + (1-PIOR)*média, nas últimas N gerações.",
+  "queda": 0.5,
+  "concentracao": 0.5,
+  "pior": 0.6,
+  "geracoes_na_aptidao": 4
+ },
+ "geracao": {
+  "_leia": "dias: duração de uma geração. troca: fração das vagas que muda a cada geração. min_ordens: mínimo de ordens na geração para ser aprovado. ociosas_max: gerações seguidas sem operar antes de sair.",
+  "dias": 14,
+  "vagas_por_especie": 10,
+  "sorteio_por_especie": 3,
+  "troca": 0.3,
+  "min_ordens": 10,
+  "ociosas_max": 3
+ },
+ "mutacao": {
+  "_leia": "chance: de cada gene mudar num filho. forca: tamanho do passo (fração da faixa do gene). migracao: chance de a mãe vir de outra espécie.",
+  "chance": 0.25,
+  "forca": 0.15,
+  "migracao": 0.1
+ },
+ "universo": {
+  "_leia": "As carteiras que os robôs podem copiar. Entram as do radar e um sorteio entre as que passam no pré-filtro do ranking. Saem as que param de operar ou quebram.",
+  "max_carteiras": 120,
+  "minimo_para_comecar": 40,
+  "entram_por_rodada": 25,
+  "dias_de_historico": 90,
+  "dias_guardados": 120,
+  "dias_para_testar_de_novo": 30,
+  "dias_sem_operar_para_sair": 30,
+  "conta_minima_para_ficar": 500,
+  "conta_minima_para_copiar": 1000,
+  "dias_parado_max": 7,
+  "max_fills_por_dia": 400,
+  "filtro": {
+   "conta_minima": 10000,
+   "volume_mes_minimo": 200000,
+   "roi_mes_minimo": 0.03,
+   "roi_mes_maximo": 3.0,
+   "exigir_pnl_total_positivo": true
+  }
+ }
+}

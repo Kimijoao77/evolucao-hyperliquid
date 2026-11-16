@@ -1,0 +1,33 @@
+name: Evolução (de 2 em 2 horas)
+
+# Coleta os traders, avança a população de robôs e guarda o estado. Tudo simulação: não existe ordem, chave nem
+# conta aqui. Só consulta a API pública da Hyperliquid e os arquivos públicos do radar-hyperliquid.
+on:
+  schedule:
+    - cron: "37 */2 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: evolucao
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  rodada:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Buscar o estado da rodada anterior
+        run: bash buscar.sh
+      - name: Rodada (coleta, evolução e resumo para o app)
+        run: python rodar.py
+      - name: Guardar
+        run: bash guardar.sh
