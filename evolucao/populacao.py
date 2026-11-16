@@ -29,31 +29,53 @@ from .dna import ESPECIES, BotDNA
 from .predador import Predator
 
 
+class FamiliaCopia:
+    """O que muda de uma família de robôs para outra, do ponto de vista da população: o DNA (genes e espécies), as
+    contas de um robô que nasce e o que fazer com elas na virada. As outras famílias (robôs de preço, cofres...)
+    recalculam a conta inteira desde o nascimento a cada rodada, então só guardam o instante em que nasceram."""
+    dna = BotDNA
+
+    @staticmethod
+    def contas(capital: float, t: int) -> dict:
+        return {"n": R.nova_conta(capital, t), "e": R.nova_conta(capital, t)}
+
+    @staticmethod
+    def virar_robo(r: dict, mundo, t: int) -> None:
+        R.virar_conta(r["n"], mundo, t)
+        R.virar_conta(r["e"], mundo, t)
+
+
+COPIA = FamiliaCopia()
+
+
 class Population:
-    def __init__(self, robos: list[dict], proximo: int, cfg: dict):
+    def __init__(self, robos: list[dict], proximo: int, cfg: dict, familia=None):
         self.robos, self.proximo, self.cfg = robos, proximo, cfg
+        self.fam = familia or COPIA
+        self.dna = self.fam.dna
+        self.especies = self.dna.ESPECIES
         self.limites = cfg["limites"]
         self.capital = cfg["ambiente"]["capital"]
 
     # ---------- nascimento
-    def _novo(self, dna: BotDNA, grupo: str, g: int, t: int, origem: str, pais=(), mudou=()) -> dict:
+    def _novo(self, dna, grupo: str, g: int, t: int, origem: str, pais=(), mudou=()) -> dict:
         self.proximo += 1
-        r = {"id": f"{ESPECIES[dna.especie]['letra']}{self.proximo}", "especie": dna.especie, "grupo": grupo,
+        r = {"id": f"{self.especies[dna.especie]['letra']}{self.proximo}", "especie": dna.especie, "grupo": grupo,
              "dna": dna.genes, "nasc": g, "origem": origem, "pais": list(pais), "mudou": list(mudou),
-             "n": R.nova_conta(self.capital, t), "e": R.nova_conta(self.capital, t), "hist": [],
+             **self.fam.contas(self.capital, t), "hist": [],
              "estado": "sorteio" if grupo == "sorteio" else "nova", "ociosas": 0}
         self.robos.append(r)
         return r
 
     @classmethod
-    def inicial(cls, cfg: dict, rng: random.Random, t: int) -> "Population":
-        pop = cls([], 0, cfg)
+    def inicial(cls, cfg: dict, rng: random.Random, t: int, familia=None) -> "Population":
+        pop = cls([], 0, cfg, familia)
         ger = cfg["geracao"]
-        for esp in ESPECIES:
+        for esp in pop.especies:
             for _ in range(ger["vagas_por_especie"]):
-                pop._novo(BotDNA.sortear(esp, rng, pop.limites), "evoluido", 1, t, "fundador")
+                pop._novo(pop.dna.sortear(esp, rng, pop.limites), "evoluido", 1, t, "fundador")
             for _ in range(ger["sorteio_por_especie"]):
-                pop._novo(BotDNA.sortear(esp, rng, pop.limites), "sorteio", 1, t, "sorteio")
+                pop._novo(pop.dna.sortear(esp, rng, pop.limites), "sorteio", 1, t, "sorteio")
         return pop
 
     def do_grupo(self, especie: str, grupo: str) -> list[dict]:
@@ -78,7 +100,7 @@ class Population:
         return out
 
     # ---------- virada de geração
-    def virar(self, g: int, medidas: dict, predador: Predator, rng: random.Random, t: int, mundo: R.Mundo) -> dict:
+    def virar(self, g: int, medidas: dict, predador: Predator, rng: random.Random, t: int, mundo=None) -> dict:
         """Fecha a geração `g`: julga, tira os que saem e põe os que nascem (que começam na geração g + 1)."""
         ger, mut = self.cfg["geracao"], self.cfg["mutacao"]
         notas_sorteio = [medidas[r["id"]]["nota"] for r in self.robos if r["grupo"] == "sorteio"]
@@ -86,7 +108,7 @@ class Population:
         saiu, nasceu = [], []
 
         # 1. julgamento: aprovado, selecionado, confirmado
-        for esp in ESPECIES:
+        for esp in self.especies:
             grupo = sorted(self.do_grupo(esp, "evoluido"), key=lambda r: (-medidas[r["id"]]["nota"], r["id"]))
             metade = math.ceil(len(grupo) / 2)
             for i, r in enumerate(grupo):
@@ -104,9 +126,9 @@ class Population:
                 r["aptidao"] = round(predador.aptidao([h["nota"] for h in r["hist"]]), 5)
 
         confirmados = {esp: [r for r in self.do_grupo(esp, "evoluido") if r["estado"] == "confirmada"]
-                       for esp in ESPECIES}
+                       for esp in self.especies}
 
-        for esp in ESPECIES:
+        for esp in self.especies:
             # 2. quem sai
             grupo = self.do_grupo(esp, "evoluido")
             sai: dict[str, str] = {}
@@ -124,12 +146,12 @@ class Population:
             vagas = ger["vagas_por_especie"] - (len(grupo) - len(sai))
             pais = [r for r in confirmados[esp] if r["id"] not in sai]
             de_fora = [r for e2, lista in confirmados.items() if e2 != esp for r in lista]
-            vivos = [BotDNA(esp, r["dna"]) for r in grupo if r["id"] not in sai]
+            vivos = [self.dna(esp, r["dna"]) for r in grupo if r["id"] not in sai]
             for k in range(vagas):
                 if (k == 0 and vagas >= 2) or not pais:
-                    dna, origem, quem, mudou = BotDNA.sortear(esp, rng, self.limites), "imigrante", [], []
+                    dna, origem, quem, mudou = self.dna.sortear(esp, rng, self.limites), "imigrante", [], []
                 elif len(pais) == 1:
-                    dna, origem, quem = BotDNA(esp, dict(pais[0]["dna"])), "mutante", [pais[0]["id"]]
+                    dna, origem, quem = self.dna(esp, dict(pais[0]["dna"])), "mutante", [pais[0]["id"]]
                     mudou = dna.mutar(rng, mut["chance"], mut["forca"], self.limites)
                 else:
                     pai = self._torneio(pais, rng)
@@ -137,7 +159,7 @@ class Population:
                         mae = self._torneio(de_fora, rng)
                     else:
                         mae = self._torneio([r for r in pais if r is not pai], rng)
-                    dna = BotDNA.cruzar(BotDNA(esp, pai["dna"]), BotDNA(mae["especie"], mae["dna"]), rng, self.limites)
+                    dna = self.dna.cruzar(self.dna(esp, pai["dna"]), self.dna(mae["especie"], mae["dna"]), rng, self.limites)
                     mudou = dna.mutar(rng, mut["chance"], mut["forca"], self.limites)
                     origem, quem = "filho", [pai["id"], mae["id"]]
                 for _ in range(5):                                     # gêmeo de alguém que já existe não explora nada
@@ -156,7 +178,7 @@ class Population:
                     break
                 sai_c.setdefault(r["id"], "o sorteio renovou (era o mais velho)")
             for _ in range(ger["sorteio_por_especie"] - (len(controle) - len(sai_c))):
-                novo = self._novo(BotDNA.sortear(esp, rng, self.limites), "sorteio", g + 1, t, "sorteio")
+                novo = self._novo(self.dna.sortear(esp, rng, self.limites), "sorteio", g + 1, t, "sorteio")
                 nasceu.append({"id": novo["id"], "especie": esp, "origem": "sorteio", "pais": [], "mudou": []})
             sai.update(sai_c)
             for r in [r for r in self.robos if r["id"] in sai]:
@@ -167,8 +189,7 @@ class Population:
         # 4. quem ficou continua com a mesma conta; só as medidas da geração recomeçam
         for r in self.robos:
             if r["nasc"] <= g:
-                R.virar_conta(r["n"], mundo, t)
-                R.virar_conta(r["e"], mundo, t)
+                self.fam.virar_robo(r, mundo, t)
         return {"saiu": saiu, "nasceu": nasceu, "corte_sorteio": round(corte_sorteio, 5)}
 
     @staticmethod

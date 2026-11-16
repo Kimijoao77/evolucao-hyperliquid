@@ -65,5 +65,25 @@
    "roi_mes_maximo": 3.0,
    "exigir_pnl_total_positivo": true
   }
+ },
+ "familias": {
+  "_leia": "As outras famílias de robôs (fora do copy trading). Cada uma tem a mesma evolução (espécies, sorteio, Predador, gerações de 14 dias) e recalcula a conta de cada robô desde o nascimento a cada rodada. 'geracao' troca só o que for diferente do copy trading.",
+  "precos": {
+   "_leia": "Robôs de preço (tendência, reversão, grade, DCA) nas velas de 1 h. custos: ordem limitada (maker), a mercado (taker) e escorregamento de uma ordem a mercado, iguais ao laboratório de grade do radar. estresse: a conta gêmea paga a mercado também nas ordens limitadas e escorrega 3 vezes mais. descanso_h: horas paradas depois do freio do robô. min_ordens: um robô de tendência opera pouco, então bastam 4 ordens (2 idas e voltas) para ser aprovado.",
+   "ligada": true,
+   "custos": {
+    "maker": 0.00015,
+    "taker": 0.00045,
+    "slip": 0.0002
+   },
+   "estresse": {
+    "maker_vira_taker": true,
+    "slip_x": 3
+   },
+   "descanso_h": 72,
+   "geracao": {
+    "min_ordens": 4
+   }
+  }
  }
 }

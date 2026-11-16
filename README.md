@@ -122,12 +122,41 @@ Saldo zerado numa foto não quer dizer quebra: muita carteira tira o dinheiro da
 posição aberta. Para copiar na proporção certa vale a última foto com saldo; sem nenhuma, o saldo de referência do
 ranking (a mesma saída do radar).
 
+## Outras famílias: robôs de preço
+
+A mesma evolução (espécies com vagas garantidas, sorteio de controle, Predador, gerações de 14 dias, filhos só de
+confirmados) também roda com robôs que **não copiam ninguém**: cada um opera uma moeda sozinho, olhando só o preço
+(velas de 1 hora) e o funding (`evolucao/precos/`). Os simuladores vêm do laboratório de grade do radar.
+
+| Espécie | Letra | Jeito | Genes do sinal |
+|---|---|---|---|
+| Tendência | T | comprado na alta, vendido na queda | cruzamento de médias (rápida 6 a 96 h, lenta 2 a 8 vezes a rápida) ou rompimento de canal (24 a 360 h) |
+| Reversão | V | compra depois da queda forte em 24 h e sai no repique | gatilho 3 % a 15 %, alvo 1 % a 6 %, só compra ou também vende na alta |
+| Grade | G | compra embaixo e vende em cima, dentro de uma faixa | faixa ±4 % a ±30 %, 5 a 30 degraus |
+| DCA | A | compra mais a cada queda e vende tudo no alvo | passo 1 % a 6 %, alvo 1 % a 5 %, pausa abaixo de uma média de 24 a 336 h (ou sem pausa) |
+
+Genes de todas: a **moeda** (BTC, ETH, SOL, HYPE, XRP, AVAX, kPEPE, NEAR), a **alavancagem** (1× a 3×) e o **freio**
+(queda de 8 % a 25 % desde o pico que faz fechar tudo e descansar 3 dias, ou desligado).
+
+O que muda em relação ao copy trading:
+
+- **A conta é refeita do nascimento a cada rodada.** As velas fechadas não mudam, então o passado dá sempre o mesmo
+  resultado e não existe carteira guardada para corromper (`evolucao/familia.py`).
+- **Estresse:** na conta gêmea as ordens limitadas pagam a taxa de quem executa a mercado e o escorregamento é 3 vezes
+  maior.
+- **Concentração:** em vez do "sem o melhor trader", a nota desconta metade do lucro do melhor **dia** da geração.
+- **Mínimo de ordens para aprovar:** 4 (um robô de tendência opera pouco).
+- **Régua de fora:** segurar BTC no mesmo período.
+- **Funding entra na conta** (o histórico real da Hyperliquid, hora a hora).
+
+O app lê `precos.json` no ramo `estado`. A memória das gerações fica em `memoria/precos/`.
+
 ## Onde fica cada coisa
 
 | Onde | O quê |
 |---|---|
 | ramo `main` | o código, os testes e `memoria/` (um arquivo por geração fechada: DNA, pais, medidas e motivo de saída de cada robô) |
-| ramo `estado` | os dados vivos: `evolucao.json` (o resumo que o app lê), `estado.json` (a população), `universo.json`, `fills/` e `contas/` |
+| ramo `estado` | os dados vivos: `evolucao.json` (o resumo que o app lê), `estado.json` (a população), `universo.json`, `fills/` e `contas/`; dos robôs de preço, `precos.json` (o resumo), `precos/estado.json` e as velas e o funding em `precos/velas/` e `precos/funding/` |
 
 O ramo `estado` é regravado a cada rodada como um commit só, sem histórico. O repositório não cresce com os anos.
 

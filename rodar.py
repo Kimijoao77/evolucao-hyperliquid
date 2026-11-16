@@ -14,7 +14,11 @@ sys.path.insert(0, str(RAIZ))
 from evolucao import dados as D  # noqa: E402
 from evolucao.api import Hyperliquid  # noqa: E402
 from evolucao.coletor import coletar  # noqa: E402
+from evolucao.familia import MotorRecalculo  # noqa: E402
 from evolucao.motor import EvolutionEngine  # noqa: E402
+from evolucao.precos import FamiliaPrecos  # noqa: E402
+
+FAMILIAS = {"precos": FamiliaPrecos}
 
 
 def main() -> int:
@@ -32,8 +36,19 @@ def main() -> int:
     motor = EvolutionEngine(cfg, api=api, agora=agora, ler_radar=ler_radar)
     motor.rodar()
     print("\n".join(motor.log))
+    falhou = False
+    for fid, classe in FAMILIAS.items():                   # cada família roda separada: uma falha não para as outras
+        if not (cfg.get("familias") or {}).get(fid, {}).get("ligada"):
+            continue
+        try:
+            m = MotorRecalculo(cfg, classe(cfg), agora, api=api)
+            m.rodar()
+            print("\n".join(m.log))
+        except Exception as e:  # noqa: BLE001
+            falhou = True
+            print(f"{fid}: a rodada falhou: {e!r}")
     print(f"peso gasto na Hyperliquid: {api.lim.total}")
-    return 0
+    return 1 if falhou else 0
 
 
 if __name__ == "__main__":
