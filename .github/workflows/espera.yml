@@ -1,0 +1,25 @@
+name: Próxima rodada (espera 2 h)
+
+# Chamada no fim de cada rodada da Evolução: espera 1 h 55 min e dispara a próxima rodada. Só existe uma espera por vez
+# (uma nova cancela a anterior), então a corrente nunca se duplica. Repositório público: o tempo parado não custa nada.
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: espera
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+
+jobs:
+  espera:
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    steps:
+      - name: Esperar 1 h 55 min
+        run: sleep 6900
+      - name: Disparar a rodada
+        run: gh workflow run evolucao.yml --repo "$GITHUB_REPOSITORY" --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}

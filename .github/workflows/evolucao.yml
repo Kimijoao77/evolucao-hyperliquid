@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write   # para chamar a "Próxima rodada" no fim (o agendamento do GitHub não dispara neste repositório)
 
 jobs:
   rodada:
@@ -31,3 +32,10 @@ jobs:
         run: python rodar.py
       - name: Guardar
         run: bash guardar.sh
+      # 16/11: o agendamento (cron) do GitHub não disparou nenhuma vez aqui. Então cada rodada chama a "Próxima rodada",
+      # que espera 1 h 55 min e chama esta de novo. O cron fica como reserva: se a corrente quebrar, ele recomeça.
+      - name: Chamar a próxima rodada (daqui a ~2 h)
+        if: always()
+        run: gh workflow run espera.yml --repo "$GITHUB_REPOSITORY" --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}
