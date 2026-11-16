@@ -223,7 +223,7 @@ class MotorRecalculo:
                        "regua": rv, "regua_nome": rn, "melhor": max((x["r"] for x in evo), default=None),
                        "operando": sum(1 for x in evo if x["situacao"] == "operando"),
                        "descansando": sum(1 for x in evo if x["situacao"] == "descansando"),
-                       "no_caixa": sum(1 for x in evo if x["situacao"] == "no caixa"),
+                       "no_caixa": sum(1 for x in evo if x["situacao"] in ("no caixa", "esperando moeda")),
                        "abatidos": sum(1 for x in evo if x["situacao"] == "abatido"),
                        "confirmados": sum(1 for x in evo if x["estado"] == "confirmada"),
                        "selecionados": sum(1 for x in evo if x["estado"] == "selecionada")},
