@@ -1,0 +1,56 @@
+name: Restaurar uma cópia
+
+# Volta o ramo "estado" para uma cópia guardada nas Releases (copias-diarias ou copias-geracoes). Antes, guarda o
+# estado de agora em copias-diarias (estado-antes-de-restaurar-<data>.tgz), para dar para desfazer.
+# Roda na mesma fila das rodadas (concurrency "evolucao"): nunca no meio de uma.
+on:
+  workflow_dispatch:
+    inputs:
+      copia:
+        description: "Nome da cópia, por exemplo estado-2026-11-17.tgz (vazio = a cópia diária mais recente)"
+        required: false
+        default: ""
+
+concurrency:
+  group: evolucao
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  restaurar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COPIA: ${{ inputs.copia }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guardar como está agora (para desfazer)
+        run: |
+          bash buscar.sh
+          if [ -n "$(ls -A dados)" ]; then
+            antes="$RUNNER_TEMP/estado-antes-de-restaurar-$(date -u +%F-%H%M).tgz"
+            tar -czf "$antes" -C dados .
+            gh release upload copias-diarias "$antes" --repo "$GITHUB_REPOSITORY"
+          fi
+      - name: Baixar a cópia
+        run: |
+          nome="$COPIA"
+          if [ -z "$nome" ]; then
+            nome=$(gh release view copias-diarias --repo "$GITHUB_REPOSITORY" --json assets \
+              --jq '[.assets[].name | select(test("^estado-[0-9]{4}-[0-9]{2}-[0-9]{2}[.]tgz$"))] | sort | last')
+          fi
+          echo "cópia escolhida: $nome"
+          mkdir -p "$RUNNER_TEMP/c"
+          for r in copias-diarias copias-geracoes; do
+            gh release download "$r" --repo "$GITHUB_REPOSITORY" --pattern "$nome" --dir "$RUNNER_TEMP/c" 2>/dev/null && break || true
+          done
+          test -f "$RUNNER_TEMP/c/$nome" || { echo "não achei a cópia $nome"; exit 1; }
+          rm -rf dados && mkdir dados && tar -xzf "$RUNNER_TEMP/c/$nome" -C dados
+          echo "$(find dados -type f | wc -l) arquivos"
+      - name: Conferir se a cópia abre
+        run: python3 conferir.py dados "$RUNNER_TEMP/nada"
+      - name: Gravar no ramo estado
+        run: bash guardar.sh

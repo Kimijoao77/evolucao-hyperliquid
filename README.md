@@ -237,6 +237,22 @@ O ramo `estado` é regravado a cada rodada como um commit só, sem histórico. O
 
 A rotina roda no GitHub Actions de 2 em 2 horas (`.github/workflows/evolucao.yml`).
 
+## Segurança dos dados (para durar anos)
+
+O plano é de anos, e o ramo `estado` é regravado a cada rodada sem histórico. Para uma rodada com defeito ou um
+acidente não apagarem a evolução:
+
+| Proteção | Como |
+|---|---|
+| Conferência antes de guardar | `conferir.py` compara o estado novo com o da rodada anterior (`anterior/`, copiado por `buscar.sh`). Arquivo que não abre, população que some, geração que volta, linhagem que encolhe ou universo que esvazia: recusa, o ramo `estado` fica como estava e a próxima rodada tenta de novo. Mudança de propósito: rodar a Evolução à mão com "forcar". |
+| Cópia diária | `copias.sh` guarda a pasta `dados/` inteira (compactada) na Release `copias-diarias`, uma por dia, e apaga as com mais de 30 dias. |
+| Cópia de cada geração | A cada geração fechada (de qualquer família), uma cópia vai para a Release `copias-geracoes` e fica para sempre. |
+| Memória das gerações | `memoria/` fica na `main`, com histórico do git: DNA, pais e medidas de todo robô que já viveu. |
+| Voltar a uma cópia | Actions → "Restaurar uma cópia" (`restaurar.yml`): sem nome, volta para a diária mais recente; antes, guarda o estado de agora (`estado-antes-de-restaurar-…`) para dar para desfazer. |
+| Vigia | O repositório Videos confere de hora em hora se o resumo está andando; parado há mais de 5 h, dispara a rodada de novo. O app também avisa ("Sem dados novos desde…"). |
+
+As Releases ficam fora do git: o repositório não cresce com as cópias.
+
 ## Limites deste teste, sem enfeite
 
 - **Funding não entra na conta**, igual à cópia fiel do radar. Em posições de dias isso pesa.

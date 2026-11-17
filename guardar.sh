@@ -9,6 +9,8 @@ git config user.email "evolucao-bot@users.noreply.github.com"
 
 git add memoria
 if ! git diff --cached --quiet; then
+  # avisa copias.sh que fechou geração (ela guarda uma cópia do estado inteiro para sempre)
+  git diff --cached --name-only --diff-filter=A -- memoria | sed 's|^memoria/||; s|\.json$||' >"${RUNNER_TEMP:-/tmp}/geracao-fechada"
   git commit -q -m "Memória: geração fechada em $(date -u +'%Y-%m-%d %H:%M') UTC"
   for i in 1 2 3 4 5; do git push -q origin HEAD:main && break; sleep 5; git pull -q --rebase origin main; done
 fi

@@ -5,7 +5,12 @@ name: Evolução (de 2 em 2 horas)
 on:
   schedule:
     - cron: "37 */2 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      forcar:
+        description: "Guardar mesmo se a conferência recusar (só para uma mudança feita de propósito)"
+        type: boolean
+        default: false
 
 concurrency:
   group: evolucao
@@ -30,8 +35,18 @@ jobs:
         run: bash buscar.sh
       - name: Rodada (coleta, evolução e resumo para o app)
         run: python rodar.py
+      # 17/11: o ramo "estado" é regravado a cada rodada, sem histórico. Antes de regravar, confere se o estado novo
+      # não está quebrado (população sumindo, geração voltando, arquivo cortado); recusou, o anterior continua lá.
+      - name: Conferir antes de guardar
+        run: python conferir.py dados anterior
+        env:
+          FORCAR: ${{ inputs.forcar && '1' || '0' }}
       - name: Guardar
         run: bash guardar.sh
+      - name: Cópias de segurança (uma por dia e uma por geração fechada, nas Releases)
+        run: bash copias.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
       # 16/11: o agendamento (cron) do GitHub não disparou nenhuma vez aqui. Então cada rodada chama a "Próxima rodada",
       # que espera 1 h 55 min e chama esta de novo. O cron fica como reserva: se a corrente quebrar, ele recomeça.
       - name: Chamar a próxima rodada (daqui a ~2 h)
