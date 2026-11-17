@@ -249,7 +249,8 @@ acidente não apagarem a evolução:
 | Cópia de cada geração | A cada geração fechada (de qualquer família), uma cópia vai para a Release `copias-geracoes` e fica para sempre. |
 | Memória das gerações | `memoria/` fica na `main`, com histórico do git: DNA, pais e medidas de todo robô que já viveu. |
 | Voltar a uma cópia | Actions → "Restaurar uma cópia" (`restaurar.yml`): sem nome, volta para a diária mais recente; antes, guarda o estado de agora (`estado-antes-de-restaurar-…`) para dar para desfazer. |
-| Vigia | O repositório Videos confere de hora em hora se o resumo está andando; parado há mais de 5 h, dispara a rodada de novo. O app também avisa ("Sem dados novos desde…"). |
+| Corrente e reserva | Cada rodada chama a próxima (`espera.yml`); se a corrente quebrar, o agendamento do GitHub (que dispara de vez em quando, com atraso) recomeça. O app avisa quando passa de 5 h sem dados ("Sem dados novos desde…"). |
+| Vigia (opcional) | O repositório Videos confere de hora em hora (`vigia-evolucao.yml`) e, parado há 5 h, dispara a rodada. Só funciona se o token ENGFY_TOKEN tiver este repositório com "Actions: leitura e escrita"; sem isso, ele só registra a falha. |
 
 As Releases ficam fora do git: o repositório não cresce com as cópias.
 
